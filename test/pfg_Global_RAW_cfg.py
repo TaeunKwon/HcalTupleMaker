@@ -23,7 +23,7 @@ options.register('processEvents',
                  "Number of events to process")
 
 options.register('inputFiles',
-                 "root://cmsxrootd.fnal.gov//store/express/Commissioning2017/ExpressPhysics/FEVT/Express-v1/000/293/591/00000/F45D88B0-A234-E711-B36A-02163E01A6B2.root", # default value
+                 'root://eoscms.cern.ch//store/express/Commissioning2021/ExpressPhysics/FEVT/Express-v1/000/346/050/00000/45eda6ac-e4bf-4972-ad52-01922f1f09e7.root',
                  VarParsing.VarParsing.multiplicity.list,
                  VarParsing.VarParsing.varType.string,
                  "Input files")
@@ -36,18 +36,18 @@ options.register('outputFile',
 
 options.parseArguments()
 
-print " "
-print "Using options:"
-print " skipEvents    =", options.skipEvents
-print " processEvents =", options.processEvents
-print " inputFiles    =", options.inputFiles
-print " outputFile    =", options.outputFile
-print " "
+print(" ")
+print("Using options:")
+print(f" skipEvents    ={options.skipEvents}")
+print(f" processEvents ={options.processEvents}")
+print(f" inputFiles    ={options.inputFiles}")
+print(f" outputFile    ={options.outputFile}")
+print(" ")
 
 #------------------------------------------------------------------------------------
 # Declare the process and input variables
 #------------------------------------------------------------------------------------
-process = cms.Process('PFG',eras.Run2_2017)
+process = cms.Process('PFG', eras.Run3)
 
 #------------------------------------------------------------------------------------
 # Get and parse the command line arguments
@@ -89,16 +89,18 @@ process.load("RecoLocalCalo.Configuration.hcalLocalReco_cff")
 process.load("HCALPFG.HcalTupleMaker.HcalTupleMaker_cfi") # loads all modules
 process.load("HCALPFG.HcalTupleMaker.HcalTupleMaker_Trigger_cfi")
 ## set desired parameters, for example:
-process.hcalTupleHFDigis.DoEnergyReco = False
+#process.hcalTupleHFDigis.DoEnergyReco = False
+#process.hcalTupleHBHERecHits.source = cms.untracked.InputTag("hbheplan1")
+#process.hcalTupleHBHEDigis.recHits = cms.untracked.InputTag("hbheplan1")
+#process.hcalTupleHBHEDigis.DoEnergyReco = cms.untracked.bool(False)
+
 process.hcalTupleHFDigis.FilterChannels = False
-process.hcalTupleHBHERecHits.source = cms.untracked.InputTag("hbheplan1")
-process.hcalTupleHBHEDigis.recHits = cms.untracked.InputTag("hbheplan1")
-process.hcalTupleHBHEDigis.DoEnergyReco = cms.untracked.bool(False)
 process.hcalTupleHFDigis.ChannelFilterList = cms.untracked.VPSet(
     # Notice only channels listed here will be saved, if the FilterChannels flag is set to true
     cms.PSet(iEta = cms.int32(29), iPhi = cms.int32(39), depth = cms.int32(1)),
     )
 
+'''
 from Configuration.StandardSequences.RawToDigi_Data_cff import *
 process.CustomizedRawToDigi = cms.Sequence(
         gtDigis*
@@ -114,6 +116,7 @@ process.CustomizedRawToDigi = cms.Sequence(
         #scalersRawToDigi*
         #tcdsDigis
 )
+'''
 
 #------------------------------------------------------------------------------------
 # FED numbers 
@@ -143,10 +146,11 @@ process.qie11Digis = process.hcalDigis.clone()
 #------------------------------------------------------------------------------------
 # Specify Global Tag
 #------------------------------------------------------------------------------------
-process.load('Configuration.StandardSequences.FrontierConditions_GlobalTag_condDBv2_cff')
-process.GlobalTag.globaltag = '101X_dataRun2_HLT_v7'
-print "GlobalTag = ", str(process.GlobalTag.globaltag).split("'")[1]
-print " "
+process.load('Configuration.StandardSequences.FrontierConditions_GlobalTag_cff')
+#process.GlobalTag.globaltag = '101X_dataRun2_HLT_v7'
+process.GlobalTag.globaltag = "120X_dataRun3_HLT_v3"
+print("GlobalTag = ", str(process.GlobalTag.globaltag).split("'")[1])
+print(" ")
 
 #------------------------------------------------------------------------------------
 # Create Noise Filter
@@ -171,7 +175,7 @@ process.tuple_step = cms.Sequence(
     #process.hcalTupleFEDs*
     
     ## Make HCAL tuples: digi info
-    process.hcalTupleHBHEDigis*
+    #process.hcalTupleHBHEDigis*
     #process.hcalTupleHODigis*
     #process.hcalTupleHFDigis*
     process.hcalTupleQIE10Digis* # for HF
@@ -184,7 +188,7 @@ process.tuple_step = cms.Sequence(
     #process.hcalTupleHFRecHits*
 
     ## Make HCAL tuples: trigger info
-    process.hcalTupleTrigger*
+    #process.hcalTupleTrigger*
     #process.hcalTupleTriggerPrimitives*
     #process.hcalTupleTriggerObjects*
 
@@ -197,7 +201,7 @@ process.tuple_step = cms.Sequence(
 #-----------------------------------------------------------------------------------
 process.preparation = cms.Path(
     ## Unpack digis from RAW
-    process.RawToDigi*
+    #process.RawToDigi*
     #process.CustomizedRawToDigi*
     #process.gtDigis*
     #process.hcalDigis*
