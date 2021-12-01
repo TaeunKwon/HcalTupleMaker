@@ -7,14 +7,14 @@ EDM analyzer for making ntuples from HCAL DIGIs and RecHits
 export SCRAM_ARCH=slc7_amd64_gcc900
 
 # setup cmssw release  
-cmsrel CMSSW_11_3_0
-cd CMSSW_11_3_0/src
+cmsrel CMSSW_12_1_0
+cd CMSSW_12_1_0/src
 cmsenv    
 
 # clone repository  
 mkdir HCALPFG  
 cd HCALPFG  
-git clone -b PFG-CMSSW_11_3_X  git@github.com:HCALPFG/HcalTupleMaker.git
+git clone -b PFG-CMSSW_12_0_X ssh://git@gitlab.cern.ch:7999/cmshcal/hcalpfg/HcalTupleMaker.git
 
 # compile code  
 cd HcalTupleMaker  
@@ -54,8 +54,12 @@ cmsRun pfg_Global_RAW_cfg.py
 1. Choose the correct global tag  
     * https://twiki.cern.ch/twiki/bin/view/CMSPublic/SWGuideFrontierConditions
 
-2. Run information:  
-    * https://cmswbm.cern.ch/
+2. Or take advantage of autoCond.py to specify a type of desired global tag which then autoCond.py resolves to an actual global tag
+    * e.g. process.GlobalTag = GlobalTag(process.GlobalTag, 'auto:run3_data', '')
+    * https://github.com/cms-sw/cmssw/blob/master/Configuration/AlCa/python/autoCond.py
+
+3. Run information:
+    * https://cmsoms.cern.ch/
 
 ---------------
 Maintained by HCAL PFG  
