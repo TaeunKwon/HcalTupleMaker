@@ -79,12 +79,12 @@ double adc2fC_QIE11[256] = {
 float energy(std::vector<float> fC) {
   int max_idx = distance(fC.begin(), max_element(fC.begin(), fC.end()));
   // cout<<"Max index is "<<max_idx<<endl;
-  int min = max_idx - 1;
-  int max = max_idx + 2;
-  if (min < 0)
-    min = 0;
-  if (max > 7)
-    max = 7;
+//  int min = max_idx - 1;
+//  int max = max_idx + 2;
+//  if (min < 0)
+   int min = 0;
+//  if (max > 7)
+   int max = 7;
   float energy = 0.;
   for (int i = min; i <= max; i++) {
     // cout<<"i is "<<i<<", fC is "<<fC.at(i)<<endl;
@@ -95,22 +95,31 @@ float energy(std::vector<float> fC) {
 }
 float digiTime(std::vector<float> fC) {
   int max_idx = distance(fC.begin(), max_element(fC.begin(), fC.end()));
-  int min = max_idx - 1;
-  int max = max_idx + 2;
-  if (min < 0)
-    min = 0;
-  if (max > 7)
-    max = 7;
+
+//  std::cout<<max_idx<<std::endl;
+//  int min = max_idx - 1;
+//  int max = max_idx + 2;
+//  if (min < 0)
+   int min = 0;
+//  if (max > 7)
+   int max = 7;
+
   float time = 0.;
   float energy = 0.;
   for (int i = min; i <= max; i++) {
+
+//    std::cout<<i<<": "<<fC.at(i)<<" ";
+  
     time += (i + 1) * fC.at(i); // offset index by 1 to avoid problems with
                                 // i==0, subtract by one later
     energy += fC.at(i);
   }
+//  std::cout<<std::endl;
+
   time = time / energy;
   time -= 1.;
   time *= 25.;
+//  std::cout<<fC.size()<<", time: "<<time<<std::endl;
   return time;
 }
 
@@ -142,11 +151,14 @@ HcalTupleMaker_QIE11Digis::HcalTupleMaker_QIE11Digis(
   produces<std::vector<int>>("QIE11DigiFlags");
   produces<std::vector<int>>("QIE11DigiNTDC");
   produces<std::vector<float>>("QIE11DigiTimeFC");
+  produces<std::vector<float>>("QIE11DigiTimeFCPedSub");
   produces<std::vector<float>>("QIE11DigiTimeTDC");
   produces<std::vector<float>>("QIE11DigiTotFC");
+  produces<std::vector<float>>("QIE11DigiTotFCPedSub");
   produces<std::vector<std::vector<int>>>("QIE11DigiSOI");
   produces<std::vector<std::vector<int>>>("QIE11DigiADC");
   produces<std::vector<std::vector<float>>>("QIE11DigiFC");
+  produces<std::vector<std::vector<float>>>("QIE11DigiFCPedSub");
   produces<std::vector<std::vector<int>>>("QIE11DigiTDC");
   produces<std::vector<std::vector<int>>>("QIE11DigiCapID");
   produces<int>("laserType");
@@ -165,7 +177,10 @@ void HcalTupleMaker_QIE11Digis::produce(edm::Event &iEvent,
   std::unique_ptr<std::vector<int>> ntdc(new std::vector<int>());
   std::unique_ptr<std::vector<float>> timetdc(new std::vector<float>());
   std::unique_ptr<std::vector<float>> timefc(new std::vector<float>());
+  std::unique_ptr<std::vector<float>> timefc_pedsub(new std::vector<float>());
   std::unique_ptr<std::vector<float>> totFC(new std::vector<float>());
+  std::unique_ptr<std::vector<float>> totFC_pedsub(new std::vector<float>());
+
   // std::unique_ptr<int>                                  lasertype (new int()
   // );
   std::unique_ptr<std::vector<std::vector<int>>> soi(
@@ -173,6 +188,8 @@ void HcalTupleMaker_QIE11Digis::produce(edm::Event &iEvent,
   std::unique_ptr<std::vector<std::vector<int>>> adc(
       new std::vector<std::vector<int>>());
   std::unique_ptr<std::vector<std::vector<float>>> fc(
+      new std::vector<std::vector<float>>());
+  std::unique_ptr<std::vector<std::vector<float>>> fc_pedsub(
       new std::vector<std::vector<float>>());
   std::unique_ptr<std::vector<std::vector<int>>> tdc(
       new std::vector<std::vector<int>>());
@@ -231,9 +248,18 @@ void HcalTupleMaker_QIE11Digis::produce(edm::Event &iEvent,
 
       const HcalQIECoder *channelCoder = conditions->getHcalCoder(hcaldetid);
       const HcalQIEShape *shape = conditions->getHcalShape(channelCoder);
+      const HcalCalibrations calibrations = conditions->getHcalCalibrations(hcaldetid);
+
       HcalCoderDb coder(*channelCoder, *shape);
       CaloSamples cs;
       coder.adc2fC(qie11df, cs);
+
+      CaloSamples cs_pedsub = CaloSamples(qie11df.id(), qie11df.samples());
+
+      for (int i = 0; i < qie11df.samples(); i++) {
+        cs_pedsub[i] = cs[i] - calibrations.pedestal(qie11df[i].capid());
+        if (qie11df[i].soi()) cs_pedsub.setPresamples(i);
+      }
 
       int nTS = qie11df.samples();
       ///// Skim based on total charge /////
@@ -268,6 +294,7 @@ void HcalTupleMaker_QIE11Digis::produce(edm::Event &iEvent,
       soi->push_back(std::vector<int>());
       adc->push_back(std::vector<int>());
       fc->push_back(std::vector<float>());
+      fc_pedsub->push_back(std::vector<float>());
       tdc->push_back(std::vector<int>());
       capid->push_back(std::vector<int>());
       size_t last_entry = adc->size() - 1;
@@ -282,6 +309,8 @@ void HcalTupleMaker_QIE11Digis::produce(edm::Event &iEvent,
             qie11df[its].soi()); // soi is a bool, but stored as an int
         (*adc)[last_entry].push_back(qie11df[its].adc());
         (*fc)[last_entry].push_back(cs[its]);
+        (*fc_pedsub)[last_entry].push_back(cs_pedsub[its]);
+
         //(*fc   )[last_entry].push_back ( adc2fC_QIE11[qie11df[its].adc()] );
         (*tdc)[last_entry].push_back(qie11df[its].tdc());
         (*capid)[last_entry].push_back(qie11df[its].capid());
@@ -299,8 +328,9 @@ void HcalTupleMaker_QIE11Digis::produce(edm::Event &iEvent,
         if (firstTDC == -999 && qie11df[its].tdc() <= maxValidTDC) {
           firstTDC = its;
         }
+        if (hcaldetid.subdet() == HcalSubdetector::HcalEndcap) std::cout<<its<<" TS: "<<qie11df[its].tdc()<<" "<<firstTDC<<", ";
       }
-
+      std::cout<<std::endl;
       if (firstTDC == -999) {
         timeTDC = -999;
       } else {
@@ -313,11 +343,15 @@ void HcalTupleMaker_QIE11Digis::produce(edm::Event &iEvent,
           timeTDC = 0.5 * qie11df[firstTDC].tdc() + firstTDC * 25.;
         }
       }
+      std::cout<<timeTDC<<" "<<firstTDC<<std::endl;
 
       ntdc->push_back(nTDC);
       timefc->push_back(digiTime((*fc)[last_entry]));
+      timefc_pedsub->push_back(digiTime((*fc_pedsub)[last_entry]));
       timetdc->push_back(timeTDC);
       totFC->push_back(energy((*fc)[last_entry]));
+      totFC_pedsub->push_back(energy((*fc_pedsub)[last_entry]));
+
     }
 
     iEvent.put(move(ieta), "QIE11DigiIEta");
@@ -330,11 +364,14 @@ void HcalTupleMaker_QIE11Digis::produce(edm::Event &iEvent,
     iEvent.put(move(flags), "QIE11DigiFlags");
     iEvent.put(move(ntdc), "QIE11DigiNTDC");
     iEvent.put(move(timefc), "QIE11DigiTimeFC");
+    iEvent.put(move(timefc_pedsub), "QIE11DigiTimeFCPedSub");
     iEvent.put(move(timetdc), "QIE11DigiTimeTDC");
     iEvent.put(move(totFC), "QIE11DigiTotFC");
+    iEvent.put(move(totFC_pedsub), "QIE11DigiTotFCPedSub");
     iEvent.put(move(soi), "QIE11DigiSOI");
     iEvent.put(move(adc), "QIE11DigiADC");
     iEvent.put(move(fc), "QIE11DigiFC");
+    iEvent.put(move(fc_pedsub), "QIE11DigiFCPedSub");
     iEvent.put(move(tdc), "QIE11DigiTDC");
     iEvent.put(move(capid), "QIE11DigiCapID");
   }
